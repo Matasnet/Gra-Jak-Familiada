@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pytanie</title>
+</head>
+<body>
+    <h1>{{ question['question'] }}</h1>
+    <form method="POST">
+        <label for="answer">Twoja odpowiedź:</label>
+        <input type="text" id="answer" name="answer">
+        <button type="submit">Sprawdź</button>
+    </form>
+    <p><a href="{{ url_for('index') }}">Powrót do listy pytań</a></p>
+</body>
+</html>

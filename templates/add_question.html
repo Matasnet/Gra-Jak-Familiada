@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dodaj Pytanie</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Dodaj Nowe Pytanie</h1>
+        </header>
+        <main>
+            <section>
+                <form method="POST">
+                    <div>
+                        <label for="question_text">Treść Pytania:</label>
+                        <textarea id="question_text" name="question_text" rows="3" cols="50" required></textarea>
+                    </div>
+                    <h2>Odpowiedzi (do 5)</h2>
+                    {% for i in range(1, 6) %}
+                    <div>
+                        <label for="answer_text_{{ i }}">Odpowiedź {{ i }}:</label>
+                        <input type="text" id="answer_text_{{ i }}" name="answer_text_{{ i }}">
+                    </div>
+                    {% endfor %}
+                    <button type="submit">Dodaj Pytanie z Odpowiedziami</button>
+                </form>
+                <p><a href="{{ url_for('admin_panel') }}">Wróć do Panelu</a></p>
+            </section>
+        </main>
+        <footer>
+            <p>&copy; 2025 Familiada - Dodaj Pytanie</p>
+        </footer>
+    </div>
+</body>
+</html>

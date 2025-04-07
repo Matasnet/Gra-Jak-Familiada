@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Wyniki</title>
+</head>
+<body>
+    <h1>Wyniki</h1>
+    <p>Pytanie: {{ question }}</p>
+    <p>Twoja odpowiedź: {{ user_answer }}</p>
+    {% if points > 0 %}
+        <p style="color: green;">Brawo! Zdobyłeś {{ points }} punktów.</p>
+    {% else %}
+        <p style="color: red;">Niestety, to nie jest poprawna odpowiedź.</p>
+        {% if correct_answers %}
+            <p>Poprawne odpowiedzi:</p>
+            <ul>
+                {% for answer, points in correct_answers.items() %}
+                <li>{{ answer }} ({{ points }} pkt)</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endif %}
+    <p><a href="{{ url_for('index') }}">Powrót do listy pytań</a></p>
+</body>
+</html>
