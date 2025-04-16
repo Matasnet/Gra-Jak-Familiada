@@ -52,4 +52,5 @@ familiada/
 ## Jak grać ?  
 Jeden gracz wciela się w administratora/admina on przydziela punkty, odsłania odpowiedzi, uruchamia gre, zmienia rundę, przyznaje ostrzeżenia za błędną odpowiedź etc.  
 Drugi gracz (opcjonalnie) jest prowadzącym on widzi tylko ilość odpowiedzi oraz punkty za odpowiedź ale jej nie zna.  
+W celu zabezpieczenia zabawy dostęp do panelu administratora i prowadzącego jest zabezpieczony hasłem (można je zmienić w pliku app.py)  
 2 zespoły bądź 2 graczy widzi zakryte odpowiedzi, zgaduje hasła i śledzi swoje wyniki.
