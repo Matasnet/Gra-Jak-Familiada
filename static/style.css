@@ -1,228 +1,276 @@
 body {
-    font-family: sans-serif;
-    margin: 20px;
-    background-color: #f4f4f4;
+    font-family: 'Arial', sans-serif;
+    background-color: #f0f0f0;
+    margin: 0;
+    padding: 0;
     color: #333;
 }
 
 .container {
-    max-width: 960px;
+    max-width: 1200px;
     margin: 0 auto;
-    background-color: #fff;
     padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background-color: white;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+h1, h2, h3 {
+    color: #2c3e50;
+}
+
+.role-selection {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #ecf0f1;
+    border-radius: 5px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-group input, .form-group select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    margin: 5px;
+}
+
+button:hover {
+    background-color: #2980b9;
+}
+
+.game-controls {
+    margin: 20px 0;
     display: flex;
-    flex-direction: column;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
-header {
-    text-align: center;
-    padding-bottom: 20px;
-    border-bottom: 1px solid #eee;
-    margin-bottom: 20px;
+.game-status {
+    padding: 10px;
+    margin: 10px 0;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    color: #721c24;
 }
 
-main {
+.game-status.active {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.teams-container {
     display: flex;
     gap: 20px;
-}
-
-#game-area {
-    flex-grow: 2;
-    padding: 15px;
-}
-
-#question-container {
-    background-color: #e9ecef;
-    padding: 15px;
-    border-radius: 5px;
-    margin-bottom: 15px;
-    text-align: center;
-    font-size: 1.2em;
-}
-
-#answers-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 10px;
-    margin-bottom: 15px;
-}
-
-.answer {
-    padding: 10px;
-    border-radius: 5px;
-    background-color: #343a40;
-    color: white;
-    cursor: pointer;
-    transition: all 0.3s;
-    text-align: center;
-    min-height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.answer.correct-answer {
-    background-color: #28a745 !important;
-    color: white;
-    font-weight: bold;
-}
-
-.answer.revealed:not(.correct-answer) {
-    background-color: #6c757d;
-    color: white;
-}
-
-.answer:not(.revealed):not(.correct-answer):hover {
-    background-color: #495057;
-    transform: translateY(-2px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-#answer-input-area {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 15px;
-}
-
-#answer-input {
-    flex-grow: 1;
-    padding: 10px;
-    border: 1px solid #ced4da;
-    border-radius: 5px;
-    font-size: 1em;
-}
-
-#submit-answer-btn {
-    padding: 10px 15px;
-    background-color: #007bff;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: all 0.3s;
-    font-weight: bold;
-}
-
-#submit-answer-btn:hover {
-    background-color: #0069d9;
-    transform: translateY(-1px);
-}
-
-#controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 15px;
-}
-
-#controls button {
-    padding: 10px 15px;
-    background-color: #17a2b8;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: all 0.3s;
-    font-weight: bold;
-    flex-grow: 1;
-}
-
-#controls button:disabled {
-    background-color: #cccccc;
-    color: #666666;
-    cursor: not-allowed;
-    transform: none;
-}
-
-#controls button:hover:not(:disabled) {
-    background-color: #138496;
-    transform: translateY(-1px);
-}
-
-#score-board {
-    flex-basis: 300px;
-    padding: 15px;
-    background-color: #f8f9fa;
-    border-radius: 5px;
-    border: 1px solid #ddd;
-}
-
-#score-board h2 {
-    text-align: center;
-    margin-bottom: 15px;
-    color: #495057;
+    margin: 20px 0;
 }
 
 .team {
-    margin-bottom: 15px;
+    flex: 1;
     padding: 15px;
+    background-color: #ecf0f1;
     border-radius: 5px;
-    background-color: white;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .team h3 {
     margin-top: 0;
-    margin-bottom: 10px;
-    color: #007bff;
+    color: #e74c3c;
 }
 
-#current-team-indicator {
+.team-score {
     font-weight: bold;
-    text-align: center;
-    margin-top: 15px;
-    padding: 10px;
-    background-color: #e9ecef;
-    border-radius: 5px;
+    font-size: 18px;
+    margin: 10px 0;
 }
 
-#team-setup {
-    margin-bottom: 20px;
-    padding: 20px;
-    border-radius: 5px;
-    background-color: white;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+.team-warnings {
+    color: #e74c3c;
+    margin: 10px 0;
 }
 
-#team-setup > div {
+.answers-container {
+    margin-top: 30px;
+}
+
+.answer {
     display: flex;
-    gap: 10px;
     align-items: center;
+    padding: 10px;
     margin-bottom: 10px;
+    background-color: #f9f9f9;
+    border-radius: 5px;
 }
 
-#team-setup label {
-    flex-basis: 150px;
-    text-align: right;
+.answer.hidden {
+    background-color: #ddd;
+}
+
+.answer-points {
     font-weight: bold;
-}
-
-#team-setup input[type="text"],
-#team-setup select {
-    flex-grow: 1;
-    padding: 8px 12px;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    font-size: 1em;
-}
-
-footer {
+    width: 50px;
     text-align: center;
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid #eee;
+    font-size: 18px;
+    color: #e74c3c;
+}
+
+.answer-text {
+    flex: 1;
+    padding: 0 10px;
+}
+
+.answer-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.team-name {
+    font-weight: bold;
+    margin: 5px 0;
+}
+
+input.team-name {
+    width: 100%;
+    padding: 5px;
+    margin-bottom: 5px;
+}
+
+/* Special buttons */
+#resetRoundPoints, #resetTeamNames {
+    background-color: #dc3545;
+}
+
+#resetRoundPoints:hover, #resetTeamNames:hover {
+    background-color: #c82333;
+}
+
+.award-points {
+    background-color: #28a745;
+}
+
+.award-points:hover {
+    background-color: #218838;
+}
+
+.add-warning {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.add-warning:hover {
+    background-color: #e0a800;
+}
+
+/* Dodaj nowe style dla edycji nazw zespołów */
+.team-name-display {
+    font-weight: bold;
+    margin: 5px 0;
+    padding: 5px;
+}
+
+.team-name-edit {
+    width: 100%;
+    padding: 5px;
+    margin-bottom: 5px;
+    display: none;
+}
+
+.edit-name, .save-name {
+    padding: 5px 10px;
+    font-size: 14px;
+    margin: 5px 0;
+}
+
+#answersCount {
+    font-size: 0.8em;
     color: #6c757d;
-    font-size: 0.9em;
+    font-weight: normal;
 }
 
-/* Dodaj style dla nowego przycisku */
-#switch-team-btn {
-    background-color: #ffc107 !important; /* Żółty kolor dla wyróżnienia */
-    color: #212529 !important;
+.answers-container h2 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-#switch-team-btn:hover:not(:disabled) {
-    background-color: #e0a800 !important;
+.answers-counter {
+    margin: 10px 0;
+    font-size: 1.1em;
+    color: #333;
+}
+
+#answersCount {
+    font-weight: bold;
+    color: #e74c3c;
+}
+
+/* Dodatkowe style dla polskiej wersji */
+.answers-counter {
+    background-color: #f8f9fa;
+    padding: 8px;
+    border-radius: 4px;
+    margin: 10px 0;
+    font-size: 1.1em;
+}
+
+#answersCount {
+    font-weight: bold;
+    color: #dc3545;
+}
+
+.team-warnings {
+    color: #e74c3c;
+    margin: 10px 0;
+}
+
+/* Style dla zakrytych odpowiedzi */
+.answer.hidden {
+    background-color: #e9ecef;
+    border-left: 4px solid #6c757d;
+}
+
+.hidden-text {
+    color: transparent;
+    text-shadow: 0 0 8px rgba(0,0,0,0.5);
+    user-select: none;
+}
+
+.answer.revealed .hidden-text {
+    color: inherit;
+    text-shadow: none;
+}
+
+.answer {
+    transition: all 0.3s ease;
+}
+
+/* Animacja odsłaniania */
+/* @keyframes reveal {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+} */
+
+.answer.revealed {
+    animation: reveal 0.5s ease forwards;
 }

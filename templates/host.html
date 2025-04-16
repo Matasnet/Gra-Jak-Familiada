@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Familiada - Host</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Panel Prowadzącego</h1>
+        
+        <div class="game-info">
+            <h2>Runda: <span id="currentRound">0</span></h2>
+            <div>Punkty rundy: <span id="roundPoints">0</span></div>
+            <div id="currentQuestion"></div>
+            <div class="answers-counter">Odpowiedzi: <span id="answersCount">0/0</span></div>
+        </div>
+
+        <div class="teams-container">
+            <div class="team" id="team1">
+                <h3>Team 1</h3>
+                <div class="team-name">Team A</div>
+                <div class="team-score">Punkty: 0</div>
+                <div class="team-warnings">Ostrzeżenia: 0</div>
+            </div>
+            
+            <div class="team" id="team2">
+                <h3>Team 2</h3>
+                <div class="team-name">Team B</div>
+                <div class="team-score">Punkty: 0</div>
+                <div class="team-warnings">Ostrzeżenia: 0</div>
+            </div>
+        </div>
+        
+    </div>
+    
+    <script src="/static/script.js"></script>
+    <script>
+        function updateGameState(data) {
+            // Update game status
+            const statusElement = document.getElementById('gameActiveStatus');
+            statusElement.textContent = data.game_active ? "Game is active" : "Game is not started";
+            statusElement.className = data.game_active ? "active" : "";
+            
+            // Update round info
+            document.getElementById('currentRound').textContent = data.current_round;
+            document.getElementById('roundPoints').textContent = data.round_points || 0;
+            
+            // Update question
+            if (data.current_question) {
+                document.getElementById('currentQuestion').textContent = data.current_question.question;
+            } else {
+                document.getElementById('currentQuestion').textContent = "No question selected";
+            }
+            
+            // Update teams
+            data.teams.forEach((team, index) => {
+                const teamDiv = document.getElementById(`team${index + 1}`);
+                teamDiv.querySelector('.team-name').textContent = team.name;
+                teamDiv.querySelector('.team-score').textContent = `Punkty: ${team.score}`;
+                teamDiv.querySelector('.team-warnings').textContent = `Ostrzeżenia: ${team.warnings}`;
+            });
+            
+            // Update answers
+            const answersList = document.getElementById('answersList');
+            answersList.innerHTML = '';
+            
+            if (data.answers && data.answers.length > 0) {
+                data.answers.forEach(answer => {
+                    const answerDiv = document.createElement('div');
+                    answerDiv.className = `answer ${answer.revealed ? 'revealed' : 'hidden'}`;
+                    
+                    if (answer.revealed) {
+                        answerDiv.innerHTML = `
+                            <div class="answer-points">${answer.points}</div>
+                            <div class="answer-text">${answer.answer}</div>
+                        `;
+                    } else {
+                        answerDiv.innerHTML = `
+                            <div class="answer-points">${answer.points}</div>
+                            <div class="answer-text">Hidden</div>
+                        `;
+                    }
+                    
+                    answersList.appendChild(answerDiv);
+                });
+            }
+        }
+        
+        // Initial fetch
+        fetchGameState();
+        setInterval(fetchGameState, 2000);
+    </script>
+</body>
+</html>

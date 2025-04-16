@@ -1,325 +1,236 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for
-from database import create_connection, get_random_question, get_question_answers, mark_question_as_used
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import sqlite3
-import random
+from datetime import datetime
+import secrets
 
 app = Flask(__name__)
+app.secret_key = secrets.token_hex(16)
 
-class GameState:
-    def __init__(self):
-        self.reset()
+# Password configuration
+ADMIN_PASSWORD = "admin123"
+HOST_PASSWORD = "host123"
 
-    def reset(self):
-        self.team1 = {'name': 'Drużyna 1', 'score': 0, 'warnings': 0}
-        self.team2 = {'name': 'Drużyna 2', 'score': 0, 'warnings': 0}
-        self.current_question = None
-        self.revealed_answers = []
-        self.current_team = 1
-        self.total_revealed = 0
-        self.correctly_guessed_answer_id = None
-
-game_state = GameState()
-
-def get_current_team():
-    return game_state.team1 if game_state.current_team == 1 else game_state.team2
-
-def switch_team():
-    game_state.current_team = 2 if game_state.current_team == 1 else 1
-    return game_state.current_team
-
-def reset_warnings():
-    game_state.team1['warnings'] = 0
-    game_state.team2['warnings'] = 0
+def get_db_connection():
+    conn = sqlite3.connect('questions.db')
+    conn.row_factory = sqlite3.Row
+    return conn
 
 @app.route('/')
-def home():
-    return render_template('index.html', game_state=game_state.__dict__)
+def index():
+    return render_template('index.html')
 
-@app.route('/start', methods=['POST'])
-def start_game():
-    print("--> Wywołano POST /start")
-    data = request.get_json()
-    team1_name = data.get('team1Name', 'Drużyna 1')
-    team2_name = data.get('team2Name', 'Drużyna 2')
-    starting_team = data.get('startingTeam', 1)
-
-    conn = create_connection()
-    if not conn:
-        print("Błąd: Nie udało się połączyć z bazą danych.")
-        return jsonify({'success': False, 'error': 'Database error'})
-
-    try:
-        game_state.reset()
-        game_state.team1['name'] = team1_name
-        game_state.team2['name'] = team2_name
-        game_state.current_team = starting_team
-
-        question = get_random_question(conn)
-        if question:
-            game_state.current_question = {'id': question['id'], 'question_text': question['question_text']}
-            answers = get_question_answers(conn, game_state.current_question['id'])
-            game_state.current_question['answers'] = [dict(row) for row in answers]
-            print(f"Pomyślnie rozpoczęto grę. Pytanie: {game_state.current_question['question_text']}")
-            print(f"Odpowiedzi: {game_state.current_question['answers']}")
-            return jsonify({
-                'success': True,
-                'question': game_state.current_question,
-                'game_state': game_state.__dict__
-            })
-        else:
-            print("Błąd: Brak dostępnych pytań w bazie danych.")
-            return jsonify({'success': False, 'error': 'No questions available'})
-    except Exception as e:
-        print(f"Wystąpił błąd podczas obsługi /start: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-    finally:
-        if conn:
-            conn.close()
-            print("Połączenie z bazą danych zamknięte po /start.")
-
-@app.route('/answer', methods=['POST'])
-def check_answer():
-    data = request.get_json()
-    answer = data.get('answer', '').strip().lower()
-    team = game_state.current_team
-
-    if not answer or not game_state.current_question:
-        return jsonify({'success': False, 'error': 'Invalid data'})
-
-    conn = create_connection()
-    if not conn:
-        return jsonify({'success': False, 'error': 'Database error'})
-
-    try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id, points, answer_text FROM answers
-            WHERE question_id = ? AND LOWER(answer_text) = ? AND id NOT IN ({})
-        """.format(','.join('?' * len(game_state.revealed_answers))),
-        [game_state.current_question['id'], answer] + game_state.revealed_answers)
-
-        result = cursor.fetchone()
-        response = {'success': True}
-
-        if result:
-            answer_id, points, answer_text = result['id'], result['points'], result['answer_text']
-            game_state.revealed_answers.append(answer_id)
-            game_state.total_revealed += points
-            get_current_team()['score'] += points
-            
-            # Inicjalizacja listy poprawnych odpowiedzi jeśli nie istnieje
-            if not hasattr(game_state, 'correct_answers'):
-                game_state.correct_answers = []
-            
-            # Dodanie poprawnej odpowiedzi do listy
-            if answer_id not in game_state.correct_answers:
-                game_state.correct_answers.append(answer_id)
-            
-            response.update({
-                'correct': True,
-                'answer_id': answer_id,
-                'points': points,
-                'answer_text': answer_text,
-                'game_state': game_state.__dict__
-            })
-        else:
-            get_current_team()['warnings'] += 1
-            response.update({
-                'correct': False,
-                'warning': get_current_team()['warnings'],
-                'game_state': game_state.__dict__
-            })
-            if get_current_team()['warnings'] >= 3:
-                response['force_reveal'] = True
-                switch_team()
-
-        return jsonify(response)
-    except Exception as e:
-        print(f"Wystąpił błąd podczas obsługi /answer: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-    finally:
-        if conn:
-            conn.close()
-
-
-@app.route('/reveal_all', methods=['POST'])
-def reveal_all_answers():
-    if not game_state.current_question:
-        return jsonify({'success': False, 'error': 'No active question'})
-
-    conn = create_connection()
-    if not conn:
-        return jsonify({'success': False, 'error': 'Database error'})
-
-    try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id, answer_text, points FROM answers
-            WHERE question_id = ? AND id NOT IN ({})
-        """.format(','.join('?' * len(game_state.revealed_answers))),
-        [game_state.current_question['id']] + game_state.revealed_answers)
-
-        revealed = []
-        for row in cursor.fetchall():
-            game_state.revealed_answers.append(row['id'])
-            game_state.total_revealed += row['points']
-            revealed.append({'id': row['id'], 'text': row['answer_text'], 'points': row['points']})
-
-        return jsonify({
-            'success': True,
-            'revealed': revealed,
-            'game_state': game_state.__dict__
-        })
-    except Exception as e:
-        print(f"Wystąpił błąd podczas obsługi /reveal_all: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-    finally:
-        if conn:
-            conn.close()
-
-@app.route('/next', methods=['POST'])
-def next_question():
-    conn = create_connection()
-    if not conn:
-        return jsonify({'success': False, 'error': 'Database error'})
-
-    try:
-        if game_state.current_question and game_state.current_question.get('id'):
-            mark_question_as_used(conn, game_state.current_question['id'])
-        reset_warnings()
-        # Resetujemy również listę poprawnych odpowiedzi
-        game_state.correct_answers = []
-        question = get_random_question(conn)
-        if question:
-            game_state.current_question = {'id': question['id'], 'question_text': question['question_text']}
-            answers = get_question_answers(conn, game_state.current_question['id'])
-            game_state.current_question['answers'] = [dict(row) for row in answers]
-            game_state.revealed_answers = []
-            game_state.total_revealed = 0
-            return jsonify({
-                'success': True,
-                'question': game_state.current_question,
-                'game_state': game_state.__dict__
-            })
-        else:
-            return jsonify({'success': False, 'error': 'No questions available'})
-    except Exception as e:
-        print(f"Wystąpił błąd podczas obsługi /next: {e}")
-        return jsonify({'success': False, 'error': str(e)})
-    finally:
-        if conn:
-            conn.close()
+@app.route('/login', methods=['POST'])
+def login():
+    role = request.form.get('role')
+    password = request.form.get('password', '')
+    
+    if role == 'admin' and password == ADMIN_PASSWORD:
+        session['role'] = 'admin'
+        return redirect(url_for('admin'))
+    elif role == 'host' and password == HOST_PASSWORD:
+        session['role'] = 'host'
+        return redirect(url_for('host'))
+    elif role == 'player':
+        session['role'] = 'player'
+        return redirect(url_for('player'))
+    else:
+        return redirect(url_for('index'))
 
 @app.route('/admin')
-def admin_panel():
-    conn = create_connection()
-    if not conn:
-        return "Błąd połączenia z bazą danych"
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, question_text FROM questions")
-    questions = cursor.fetchall()
+def admin():
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+    return render_template('admin.html')
+
+@app.route('/host')
+def host():
+    if session.get('role') != 'host':
+        return redirect(url_for('index'))
+    return render_template('host.html')
+
+@app.route('/player')
+def player():
+    if session.get('role') != 'player':
+        session['role'] = 'player'
+    return render_template('player.html')
+
+# API endpoints
+@app.route('/api/game_state')
+def get_game_state():
+    conn = get_db_connection()
+    game_state = conn.execute('SELECT * FROM game_state LIMIT 1').fetchone()
+    current_question = None
+    answers = []
+    teams = []
+    
+    if game_state['current_question_id']:
+        current_question = conn.execute('SELECT * FROM questions WHERE id = ?', 
+                                      (game_state['current_question_id'],)).fetchone()
+        # Dla wszystkich ról zwracamy wszystkie odpowiedzi
+        answers = conn.execute('SELECT * FROM answers WHERE question_id = ? ORDER BY points DESC',
+                              (game_state['current_question_id'],)).fetchall()
+    
+    teams = conn.execute('SELECT * FROM teams ORDER BY id').fetchall()
     conn.close()
-    return render_template('admin.html', questions=questions)
+    
+    return jsonify({
+        'game_active': bool(game_state['game_active']),
+        'current_round': game_state['current_round'],
+        'round_points': game_state['round_points'],
+        'current_question': dict(current_question) if current_question else None,
+        'answers': [dict(answer) for answer in answers],
+        'teams': [dict(team) for team in teams],
+        'user_role': session.get('role')
+    })
 
-@app.route('/admin/add_question', methods=['GET', 'POST'])
-def add_question():
-    if request.method == 'POST':
-        question_text = request.form['question_text']
-        answers_text = [request.form.get(f'answer_text_{i}').strip() for i in range(1, 6) if request.form.get(f'answer_text_{i}') and request.form.get(f'answer_text_{i}').strip()]
+@app.route('/api/start_game', methods=['POST'])
+def start_game():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Brak uprawnień'}), 403
 
-        if question_text and answers_text:
-            conn = create_connection()
-            if not conn:
-                return "Błąd połączenia z bazą danych"
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO questions (question_text) VALUES (?)", (question_text,))
-            question_id = cursor.lastrowid
-
-            num_answers = len(answers_text)
-            base_points = 35 // num_answers if num_answers > 0 else 0
-            remainder = 35 % num_answers if num_answers > 0 else 0
-            points_per_answer = [base_points + (1 if i < remainder else 0) + random.randint(0, 5) for i in range(num_answers)]
-            random.shuffle(points_per_answer)
-            total_points = sum(points_per_answer)
-
-            if total_points < 35:
-                diff = 35 - total_points
-                for i in range(diff):
-                    points_per_answer[random.randint(0, len(points_per_answer) - 1)] += 1
-                total_points = sum(points_per_answer)
-            elif total_points > 100:
-                diff = total_points - 100
-                for i in range(diff):
-                    points_per_answer[random.randint(0, len(points_per_answer) - 1)] = max(0, points_per_answer[random.randint(0, len(points_per_answer) - 1)] - 1)
-
-            for i, ans_text in enumerate(answers_text):
-                cursor.execute("INSERT INTO answers (question_id, answer_text, points) VALUES (?, ?, ?)", (question_id, ans_text, points_per_answer[i]))
-
-            conn.commit()
-            conn.close()
-            return redirect(url_for('admin_panel'))
-        else:
-            return "Proszę podać treść pytania i co najmniej jedną odpowiedź."
-    return render_template('add_question.html')
-
-@app.route('/admin/edit_question/<int:question_id>', methods=['GET', 'POST'])
-def edit_question(question_id):
-    conn = create_connection()
-    if not conn:
-        return "Błąd połączenia z bazą danych"
-    cursor = conn.cursor()
-
-    if request.method == 'POST':
-        question_text = request.form['question_text']
-        answers_data = []
-        for i in range(1, 6):
-            answer_text = request.form.get(f'answer_text_{i}')
-            points = request.form.get(f'points_{i}', 0, type=int)
-            if answer_text and answer_text.strip():
-                answers_data.append({'text': answer_text.strip(), 'points': points})
-
-        total_points = sum(ans['points'] for ans in answers_data)
-        if 35 <= total_points <= 100 and answers_data:
-            cursor.execute("UPDATE questions SET question_text = ? WHERE id = ?", (question_text, question_id))
-            cursor.execute("DELETE FROM answers WHERE question_id = ?", (question_id,))
-            for answer in answers_data:
-                cursor.execute("INSERT INTO answers (question_id, answer_text, points) VALUES (?, ?, ?)", (question_id, answer['text'], answer['points']))
-            conn.commit()
-            conn.close()
-            return redirect(url_for('admin_panel'))
-        else:
-            conn.close()
-            return "Suma punktów odpowiedzi musi być między 35 a 100 i musi być co najmniej jedna odpowiedź."
-
-    cursor.execute("SELECT question_text FROM questions WHERE id = ?", (question_id,))
-    question = cursor.fetchone()
-    cursor.execute("SELECT id, answer_text, points FROM answers WHERE question_id = ?", (question_id,))
-    answers = cursor.fetchall()
-    conn.close()
-    if question:
-        return render_template('edit_question.html', question=question, answers=answers, question_id=question_id)
-    else:
-        return "Pytanie nie znaleziono."
-
-@app.route('/admin/delete_question/<int:question_id>')
-def delete_question(question_id):
-    conn = create_connection()
-    if not conn:
-        return "Błąd połączenia z bazą danych"
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM answers WHERE question_id = ?", (question_id,))
-    cursor.execute("DELETE FROM questions WHERE id = ?", (question_id,))
+# Analogicznie w innych endpointach
+    
+    conn = get_db_connection()
+    conn.execute('UPDATE game_state SET game_active = 1')
     conn.commit()
     conn.close()
-    return redirect(url_for('admin_panel'))
+    return jsonify({'success': True})
 
-@app.route('/switch_team', methods=['POST'])
-def switch_team_endpoint():
-    switch_team()  # Ta funkcja już istnieje w Twoim kodzie
-    return jsonify({
-        'success': True,
-        'game_state': game_state.__dict__
-    })
+@app.route('/api/next_round', methods=['POST'])
+def next_round():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    conn = get_db_connection()
+    game_state = conn.execute('SELECT * FROM game_state LIMIT 1').fetchone()
+    new_round = game_state['current_round'] + 1
+    
+    # Get a random question for the new round
+    question = conn.execute('SELECT * FROM questions WHERE round_number = ? ORDER BY RANDOM() LIMIT 1',
+                           (new_round,)).fetchone()
+    
+    if question:
+        conn.execute('UPDATE game_state SET current_round = ?, current_question_id = ?, round_points = 0',
+                    (new_round, question['id']))
+        # Reset answer states
+        conn.execute('UPDATE answers SET revealed = 0 WHERE question_id = ?', (question['id'],))
+        # Reset team warnings
+        conn.execute('UPDATE teams SET warnings = 0')
+    else:
+        conn.close()
+        return jsonify({'success': False, 'error': 'No questions available for this round'})
+    
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/reveal_answer', methods=['POST'])
+def reveal_answer():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    answer_id = request.json.get('answer_id')
+    if not answer_id:
+        return jsonify({'success': False, 'error': 'Missing answer_id'}), 400
+    
+    conn = get_db_connection()
+    
+    # Get answer points
+    answer = conn.execute('SELECT points FROM answers WHERE id = ?', (answer_id,)).fetchone()
+    if not answer:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Answer not found'}), 404
+    
+    # Update answer state
+    conn.execute('UPDATE answers SET revealed = 1 WHERE id = ?', (answer_id,))
+    
+    # Add points to round total
+    conn.execute('UPDATE game_state SET round_points = round_points + ?', (answer['points'],))
+    
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/award_round_points', methods=['POST'])
+def award_round_points():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    team_id = request.json.get('team_id')
+    
+    if not team_id:
+        return jsonify({'success': False, 'error': 'Missing team_id'}), 400
+    
+    conn = get_db_connection()
+    
+    # Get current round points
+    game_state = conn.execute('SELECT round_points FROM game_state LIMIT 1').fetchone()
+    points = game_state['round_points'] or 0
+    
+    if points > 0:
+        # Update team score
+        conn.execute('UPDATE teams SET score = score + ? WHERE id = ?', (points, team_id))
+        # Reset round points
+        conn.execute('UPDATE game_state SET round_points = 0')
+        conn.commit()
+    
+    conn.close()
+    return jsonify({'success': True, 'points_awarded': points})
+
+@app.route('/api/reset_round_points', methods=['POST'])
+def reset_round_points():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    conn = get_db_connection()
+    conn.execute('UPDATE game_state SET round_points = 0')
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/add_warning', methods=['POST'])
+def add_warning():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    team_id = request.json.get('team_id')
+    if not team_id:
+        return jsonify({'success': False, 'error': 'Missing team_id'}), 400
+    
+    conn = get_db_connection()
+    conn.execute('UPDATE teams SET warnings = warnings + 1 WHERE id = ?', (team_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/update_team_name', methods=['POST'])
+def update_team_name():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    team_id = request.json.get('team_id')
+    new_name = request.json.get('new_name')
+    
+    if not team_id or not new_name:
+        return jsonify({'success': False, 'error': 'Missing parameters'}), 400
+    
+    conn = get_db_connection()
+    conn.execute('UPDATE teams SET name = ? WHERE id = ?', (new_name, team_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/reset_team_names', methods=['POST'])
+def reset_team_names():
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    conn = get_db_connection()
+    conn.execute('UPDATE teams SET name = "Team A" WHERE id = 1')
+    conn.execute('UPDATE teams SET name = "Team B" WHERE id = 2')
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
 
 if __name__ == '__main__':
     app.run(debug=True)

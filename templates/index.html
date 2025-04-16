@@ -1,79 +1,57 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Familiada</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Familiada - Choose Role</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>Familiada</h1>
-        </header>
-
-        <main>
-            <section id="game-area">
-                <div id="team-setup">
-                    <div>
-                        <label for="team1-name">Nazwa Drużyny 1:</label>
-                        <input type="text" id="team1-name" value="Drużyna 1">
-                    </div>
-                    <div>
-                        <label for="team2-name">Nazwa Drużyny 2:</label>
-                        <input type="text" id="team2-name" value="Drużyna 2">
-                    </div>
-                    <div>
-                        <label for="first-team">Zaczyna drużyna:</label>
-                        <select id="first-team">
-                            <option value="1" selected>Drużyna 1</option>
-                            <option value="2">Drużyna 2</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div id="question-container">
-                    <p id="question">Naciśnij "Start", aby rozpocząć grę.</p>
-                </div>
-
-                <div id="answers-container">
-                    <!-- Odpowiedzi będą dodawane dynamicznie -->
-                </div>
-
-                <div id="answer-input-area">
-                    <input type="text" id="answer-input" placeholder="Twoja odpowiedź">
-                    <button id="submit-answer-btn">Sprawdź</button>
-                </div>
-
-                <div id="controls">
-                    <button id="start-btn">Start</button>
-                    <button id="next-btn" disabled>Następne Pytanie</button>
-                    <button id="reveal-all-btn" disabled>Ujawnij Wszystkie</button>
-                    <button id="switch-team-btn" disabled>Zmień Drużynę</button>
-                </div>
-            </section>
-
-            <aside id="score-board">
-                <h2>Wyniki</h2>
-                <div class="team">
-                    <h3 id="team1-name-display">Drużyna 1</h3>
-                    <p>Punkty: <span id="team1-score">0</span></p>
-                    <p>Ostrzeżenia: <span id="team1-warnings">0</span></p>
-                </div>
-                <div class="team">
-                    <h3 id="team2-name-display">Drużyna 2</h3>
-                    <p>Punkty: <span id="team2-score">0</span></p>
-                    <p>Ostrzeżenia: <span id="team2-warnings">0</span></p>
-                </div>
-                <p id="current-team-indicator">Aktualna drużyna: <span id="current-team"></span></p>
-            </aside>
-        </main>
-
-        <footer>
-            <p>&copy; 2025 Familiada - Stworzone z pasją!</p>
-        </footer>
-    </div>
-
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+        <h1>Familiada</h1>
+<div class="role-selection">
+    <form id="loginForm">
+        <div class="form-group">
+            <label for="role">Wybierz rolę:</label>
+            <select id="role" name="role" required>
+                <option value="">-- Wybierz rolę --</option>
+                <option value="admin">Administrator</option>
+                <option value="host">Prowadzący</option>
+                <option value="player">Gracz</option>
+            </select>
+        </div>
+        <div class="form-group" id="passwordGroup" style="display: none;">
+            <label for="password">Hasło:</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit">Wejdź</button>
+    </form>
+</div>
+    <script>
+        document.getElementById('role').addEventListener('change', function() {
+            const role = this.value;
+            const passwordGroup = document.getElementById('passwordGroup');
+            
+            if (role === 'admin' || role === 'host') {
+                passwordGroup.style.display = 'block';
+            } else {
+                passwordGroup.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            fetch('/login', {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                }
+            });
+        });
+    </script>
 </body>
 </html>
