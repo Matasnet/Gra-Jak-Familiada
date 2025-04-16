@@ -25,7 +25,7 @@ Familiada Online to wierna adaptacja popularnego teleturnieju, pozwalająca na r
 
 1. Sklonuj repozytorium:
 ```bash
-git clone https://github.com/twoj-repo/familiada-online.git  
+git clone https://github.com/Matasnet/Gra-Jak-Familiada.git  
 ```
 
 2. Inicjalizacja bazy danyc:
