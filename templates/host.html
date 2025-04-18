@@ -1,96 +1,97 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Familiada - Host</title>
+    <title>Familiada - Prowadzący</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Panel Prowadzącego</h1>
-        
-        <div class="game-info">
-            <h2>Runda: <span id="currentRound">0</span></h2>
-            <div>Punkty rundy: <span id="roundPoints">0</span></div>
-            <div id="currentQuestion"></div>
-            <div class="answers-counter">Odpowiedzi: <span id="answersCount">0/0</span></div>
+    <div class="container host-view">
+        <div class="header-section">
+            <h1 class="game-title">FAMILIADA</h1>
+            <div class="round-info">RUNDA <span id="currentRound" class="round-number">0</span></div>
         </div>
-
+        
+        <div class="question-container">
+            <div id="currentQuestion" class="question-text"></div>
+        </div>
+        
+        <div class="answers-container">
+            <div class="answers-header">
+                <div class="answers-counter">ODSŁONIĘTO: <span id="answersCount">0</span>/<span id="totalAnswers">0</span></div>
+                <div class="points-counter">PULA: <span id="roundPoints">0</span> PKT</div>
+            </div>
+            <div id="answersList"></div>
+        </div>
+        
         <div class="teams-container">
             <div class="team" id="team1">
-                <h3>Team 1</h3>
-                <div class="team-name">Team A</div>
-                <div class="team-score">Punkty: 0</div>
-                <div class="team-warnings">Ostrzeżenia: 0</div>
+                <div class="team-name">ZESPÓŁ A</div>
+                <div class="team-score"><span class="score-value">0</span> PKT</div>
+                <div class="team-warnings">OSTRZEŻENIA: <span class="warnings-value">0</span></div>
             </div>
             
             <div class="team" id="team2">
-                <h3>Team 2</h3>
-                <div class="team-name">Team B</div>
-                <div class="team-score">Punkty: 0</div>
-                <div class="team-warnings">Ostrzeżenia: 0</div>
+                <div class="team-name">ZESPÓŁ B</div>
+                <div class="team-score"><span class="score-value">0</span> PKT</div>
+                <div class="team-warnings">OSTRZEŻENIA: <span class="warnings-value">0</span></div>
             </div>
         </div>
-        
     </div>
-    
+
     <script src="/static/script.js"></script>
     <script>
-        function updateGameState(data) {
-            // Update game status
-            const statusElement = document.getElementById('gameActiveStatus');
-            statusElement.textContent = data.game_active ? "Game is active" : "Game is not started";
-            statusElement.className = data.game_active ? "active" : "";
-            
-            // Update round info
-            document.getElementById('currentRound').textContent = data.current_round;
+    function updateGameState(data) {
+        // Nagłówek
+        document.getElementById('currentRound').textContent = data.current_round;
+        
+        // Pytanie
+        document.getElementById('currentQuestion').textContent = 
+            data.current_question ? data.current_question.question : "";
+        
+        // Liczniki
+        if (data.answers) {
+            const revealed = data.answers.filter(a => a.revealed).length;
+            const total = data.answers.length;
+            document.getElementById('answersCount').textContent = revealed;
+            document.getElementById('totalAnswers').textContent = total;
             document.getElementById('roundPoints').textContent = data.round_points || 0;
-            
-            // Update question
-            if (data.current_question) {
-                document.getElementById('currentQuestion').textContent = data.current_question.question;
-            } else {
-                document.getElementById('currentQuestion').textContent = "No question selected";
-            }
-            
-            // Update teams
-            data.teams.forEach((team, index) => {
-                const teamDiv = document.getElementById(`team${index + 1}`);
-                teamDiv.querySelector('.team-name').textContent = team.name;
-                teamDiv.querySelector('.team-score').textContent = `Punkty: ${team.score}`;
-                teamDiv.querySelector('.team-warnings').textContent = `Ostrzeżenia: ${team.warnings}`;
-            });
-            
-            // Update answers
-            const answersList = document.getElementById('answersList');
-            answersList.innerHTML = '';
-            
-            if (data.answers && data.answers.length > 0) {
-                data.answers.forEach(answer => {
-                    const answerDiv = document.createElement('div');
-                    answerDiv.className = `answer ${answer.revealed ? 'revealed' : 'hidden'}`;
-                    
-                    if (answer.revealed) {
-                        answerDiv.innerHTML = `
-                            <div class="answer-points">${answer.points}</div>
-                            <div class="answer-text">${answer.answer}</div>
-                        `;
-                    } else {
-                        answerDiv.innerHTML = `
-                            <div class="answer-points">${answer.points}</div>
-                            <div class="answer-text">Hidden</div>
-                        `;
-                    }
-                    
-                    answersList.appendChild(answerDiv);
-                });
-            }
         }
         
-        // Initial fetch
+        // Zespoły
+        data.teams.forEach(team => {
+            const teamDiv = document.getElementById(`team${team.id}`);
+            if (teamDiv) {
+                teamDiv.querySelector('.team-name').textContent = team.name.toUpperCase();
+                teamDiv.querySelector('.score-value').textContent = team.score;
+                teamDiv.querySelector('.warnings-value').textContent = team.warnings;
+            }
+        });
+        
+        // Odpowiedzi
+        const answersList = document.getElementById('answersList');
+        answersList.innerHTML = '';
+        
+        if (data.answers) {
+            data.answers.sort((a, b) => b.points - a.points).forEach(answer => {
+                const answerDiv = document.createElement('div');
+                answerDiv.className = `answer ${answer.revealed ? 'revealed' : 'hidden'}`;
+                
+                answerDiv.innerHTML = `
+                    <div class="answer-points">${answer.points}</div>
+                    <div class="answer-text">${answer.revealed ? answer.answer : '?'}</div>
+                `;
+                
+                answersList.appendChild(answerDiv);
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
         fetchGameState();
         setInterval(fetchGameState, 2000);
+    });
     </script>
 </body>
 </html>

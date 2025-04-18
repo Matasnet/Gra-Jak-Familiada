@@ -66,9 +66,16 @@ def get_game_state():
     if game_state['current_question_id']:
         current_question = conn.execute('SELECT * FROM questions WHERE id = ?', 
                                       (game_state['current_question_id'],)).fetchone()
-        # Dla wszystkich ról zwracamy wszystkie odpowiedzi
-        answers = conn.execute('SELECT * FROM answers WHERE question_id = ? ORDER BY points DESC',
-                              (game_state['current_question_id'],)).fetchall()
+        
+        # Dla hosta pokazuj punkty ale nie treść ukrytych odpowiedzi
+        if session.get('role') == 'host':
+            answers = conn.execute('''SELECT id, question_id, points, revealed, 
+                                     CASE WHEN revealed = 1 THEN answer ELSE 'Ukryte' END as answer 
+                                     FROM answers WHERE question_id = ? ORDER BY points DESC''',
+                                  (game_state['current_question_id'],)).fetchall()
+        else:
+            answers = conn.execute('SELECT * FROM answers WHERE question_id = ? ORDER BY points DESC',
+                                  (game_state['current_question_id'],)).fetchall()
     
     teams = conn.execute('SELECT * FROM teams ORDER BY id').fetchall()
     conn.close()
@@ -154,28 +161,29 @@ def reveal_answer():
 @app.route('/api/award_round_points', methods=['POST'])
 def award_round_points():
     if session.get('role') != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return jsonify({'success': False, 'error': 'Brak uprawnień'}), 403
     
     team_id = request.json.get('team_id')
-    
     if not team_id:
-        return jsonify({'success': False, 'error': 'Missing team_id'}), 400
+        return jsonify({'success': False, 'error': 'Brak ID zespołu'}), 400
     
     conn = get_db_connection()
-    
-    # Get current round points
-    game_state = conn.execute('SELECT round_points FROM game_state LIMIT 1').fetchone()
-    points = game_state['round_points'] or 0
-    
-    if points > 0:
-        # Update team score
-        conn.execute('UPDATE teams SET score = score + ? WHERE id = ?', (points, team_id))
-        # Reset round points
-        conn.execute('UPDATE game_state SET round_points = 0')
-        conn.commit()
-    
-    conn.close()
-    return jsonify({'success': True, 'points_awarded': points})
+    try:
+        game_state = conn.execute('SELECT round_points FROM game_state LIMIT 1').fetchone()
+        points = game_state['round_points'] or 0
+        
+        if points > 0:
+            conn.execute('UPDATE teams SET score = score + ? WHERE id = ?', (points, team_id))
+            conn.execute('UPDATE game_state SET round_points = 0')
+            conn.commit()
+            return jsonify({'success': True, 'points_awarded': points})
+        else:
+            return jsonify({'success': False, 'error': 'Brak punktów do przyznania'})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
 
 @app.route('/api/reset_round_points', methods=['POST'])
 def reset_round_points():
@@ -191,18 +199,26 @@ def reset_round_points():
 @app.route('/api/add_warning', methods=['POST'])
 def add_warning():
     if session.get('role') != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        return jsonify({'success': False, 'error': 'Brak uprawnień'}), 403
     
     team_id = request.json.get('team_id')
     if not team_id:
-        return jsonify({'success': False, 'error': 'Missing team_id'}), 400
+        return jsonify({'success': False, 'error': 'Brak ID zespołu'}), 400
     
     conn = get_db_connection()
-    conn.execute('UPDATE teams SET warnings = warnings + 1 WHERE id = ?', (team_id,))
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
-
+    try:
+        conn.execute('UPDATE teams SET warnings = warnings + 1 WHERE id = ?', (team_id,))
+        conn.commit()
+        
+        # Zwracamy zaktualizowaną liczbę ostrzeżeń
+        updated_warnings = conn.execute('SELECT warnings FROM teams WHERE id = ?', (team_id,)).fetchone()['warnings']
+        return jsonify({'success': True, 'warnings': updated_warnings})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+        
 @app.route('/api/update_team_name', methods=['POST'])
 def update_team_name():
     if session.get('role') != 'admin':

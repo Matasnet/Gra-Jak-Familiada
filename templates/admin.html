@@ -1,231 +1,208 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Familiada - Administrator</title>
+    <title>Familiada - Panel Admina</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Administrator Panel</h1>
-        
-        <div class="game-controls">
-            <button id="startGame">Rozpocznij grę</button>
-            <button id="nextRound">Następna runda</button>
-            <button id="resetRoundPoints">Zeruj punkty rundy</button>
-            <button id="resetTeamNames">Przywróć domyślne nazwy</button>
-        </div>
-        
-        <div class="game-info">
+    <div class="container admin-view">
+        <header class="admin-header">
+            <h1>PANEL ADMINISTRATORA</h1>
             <div class="game-status">
-                <div id="gameActiveStatus">Gra nieaktywna</div>
+                <span id="gameActiveStatus">GRY NIEAKTYWNA</span>
+                <span class="round-info">RUNDA: <span id="currentRound">0</span></span>
             </div>
-            <h2>Runda: <span id="currentRound">0</span></h2>
-            <div>Punkty rundy: <span id="roundPoints">0</span></div>
-            <div id="currentQuestion"></div>
-            <div class="answers-counter">Odpowiedzi: <span id="answersCount">0/0</span> odsłonięte</div>
-        </div>
-        
-        <div class="teams-container">
-            <div class="team" id="team1">
-                <h3>Zespół 1</h3>
-                <div class="team-name-display">Zespół A</div>
-                <input type="text" class="team-name-edit" style="display: none;">
-                <button class="edit-name">Zmień nazwę</button>
-                <button class="save-name" style="display: none;">Zapisz</button>
-                <div class="team-score">Punkty: 0</div>
-                <div class="team-warnings">Ostrzeżenia: 0</div>
-                <button class="add-warning">Dodaj ostrzeżenie</button>
-                <button class="award-points">Przyznaj punkty</button>
+        </header>
+
+        <section class="control-panel">
+            <div class="control-section">
+                <h2>Sterowanie grą</h2>
+                <div class="control-buttons">
+                    <button id="startGame" class="control-btn main-btn">ROZPOCZNIJ GRĘ</button>
+                    <button id="nextRound" class="control-btn">NASTĘPNA RUNDA</button>
+                    <button id="resetRoundPoints" class="control-btn warning-btn">ZERUJ PUNKTY RUNDY</button>
+                </div>
             </div>
-            
-            <div class="team" id="team2">
-                <h3>Team 2</h3>
-                <div class="team-name-display">Zespół B</div>
-                <input type="text" class="team-name-edit" style="display: none;" value="Team B">
-                <button class="edit-name">Zmień nazwę</button>
-                <button class="save-name" style="display: none;">Zapisz</button>
-                <div class="team-score">Punkty: 0</div>
-                <div class="team-warnings">Ostrzeżęnia: 0</div>
-                <button class="add-warning">Dodaj ostrzeżenie</button>
-                <button class="award-points">Przyznaj punkty</button>
+
+            <div class="control-section">
+                <h2>Zarządzanie zespołami</h2>
+                <div class="team-controls">
+                    <div class="team-admin" id="team1" data-team-id="1">
+                        <input type="text" class="team-name-input" value="Zespół A">
+                        <button class="update-name-btn">AKTUALIZUJ</button>
+                        <div class="team-stats">
+                            <span class="team-score">0 PKT</span>
+                            <button class="add-warning-btn">+ OSTRZEŻENIE</button>
+                            <button class="award-points-btn">PRZYZNAJ PUNKTY</button>
+                        </div>
+                    </div>
+                    <div class="team-admin" id="team2" data-team-id="2">
+                        <input type="text" class="team-name-input" value="Zespół B">
+                        <button class="update-name-btn">AKTUALIZUJ</button>
+                        <div class="team-stats">
+                            <span class="team-score">0 PKT</span>
+                            <button class="add-warning-btn">+ OSTRZEŻENIE</button>
+                            <button class="award-points-btn">PRZYZNAJ PUNKTY</button>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-        
-        <div class="answers-container">
-            <h2>Odpowiedzi</h2>
-            <div id="answersList"></div>
-        </div>
+        </section>
+
+        <section class="answers-admin-panel">
+            <h2>Zarządzanie odpowiedziami <span class="points-counter">Pula rundy: <span id="roundPoints">0</span> PKT</span></h2>
+            <div class="question-preview">
+                <h3>Aktualne pytanie:</h3>
+                <div id="currentQuestionText" class="question-text">Brak aktywnego pytania</div>
+            </div>
+            <div id="answersList" class="answers-grid"></div>
+        </section>
     </div>
-    
+
     <script src="/static/script.js"></script>
     <script>
-        function updateGameState(data) {
-            // Update game status
-            const statusElement = document.getElementById('gameActiveStatus');
-            statusElement.textContent = data.game_active ? "Game is active" : "Game is not started";
-            statusElement.className = data.game_active ? "active" : "";
-            
-            // Update round info
-            document.getElementById('currentRound').textContent = data.current_round;
-            document.getElementById('roundPoints').textContent = data.round_points || 0;
-            
-            // Update question
-            if (data.current_question) {
-                document.getElementById('currentQuestion').textContent = data.current_question.question;
-            } else {
-                document.getElementById('currentQuestion').textContent = "No question selected";
+    function handleResponse(response) {
+        return response.json().then(data => {
+            if (!data.success) {
+                alert(data.error || 'Operacja nie powiodła się');
             }
-            
-            // Update teams
-            data.teams.forEach((team, index) => {
-                const teamDiv = document.getElementById(`team${index + 1}`);
-                teamDiv.dataset.teamId = team.id;
-                
-                // Update names only if not in edit mode
-                if (teamDiv.querySelector('.team-name-edit').style.display === 'none') {
-                    teamDiv.querySelector('.team-name-display').textContent = team.name;
-                    teamDiv.querySelector('.team-name-edit').value = team.name;
-                }
-                
-                teamDiv.querySelector('.team-score').textContent = `Score: ${team.score}`;
-                teamDiv.querySelector('.team-warnings').textContent = `Warnings: ${team.warnings}`;
-            });
-            
-            // Update answers
-            const answersList = document.getElementById('answersList');
-              answersList.innerHTML = '';
+            return data;
+        });
+    }
 
-              if (data.answers && data.answers.length > 0) {
-                  data.answers.forEach(answer => {
-                      const answerDiv = document.createElement('div');
-                      answerDiv.className = `answer ${answer.revealed ? 'revealed' : 'hidden'}`;
-                      answerDiv.dataset.answerId = answer.id;
-
-                      answerDiv.innerHTML = `
-                          <div class="answer-points">${answer.points}</div>
-                          <div class="answer-text">${answer.answer}</div>
-                          <div class="answer-status">${answer.revealed ? 'REVEALED' : 'HIDDEN'}</div>
-                      `;
-
-                      if (!answer.revealed) {
-                          const revealBtn = document.createElement('button');
-                          revealBtn.className = 'reveal-answer';
-                          revealBtn.textContent = 'Reveal';
-                          answerDiv.appendChild(revealBtn);
-                      }
-
-                      answersList.appendChild(answerDiv);
-                  });
-              }
-            }
-        function setupTeamNameEditing() {
-            document.querySelectorAll('.edit-name').forEach(button => {
-                button.addEventListener('click', function() {
-                    const teamDiv = this.closest('.team');
-                    teamDiv.querySelector('.team-name-display').style.display = 'none';
-                    teamDiv.querySelector('.team-name-edit').style.display = 'block';
-                    teamDiv.querySelector('.edit-name').style.display = 'none';
-                    teamDiv.querySelector('.save-name').style.display = 'block';
-                    teamDiv.querySelector('.team-name-edit').focus();
-                });
-            });
-
-            document.querySelectorAll('.save-name').forEach(button => {
-                button.addEventListener('click', function() {
-                    const teamDiv = this.closest('.team');
-                    const newName = teamDiv.querySelector('.team-name-edit').value;
-                    const teamId = teamDiv.dataset.teamId;
-                    
-                    fetch('/api/update_team_name', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            team_id: teamId,
-                            new_name: newName
-                        })
-                    }).then(handleResponse).then(() => {
-                        teamDiv.querySelector('.team-name-display').textContent = newName;
-                        teamDiv.querySelector('.team-name-display').style.display = 'block';
-                        teamDiv.querySelector('.team-name-edit').style.display = 'none';
-                        teamDiv.querySelector('.edit-name').style.display = 'block';
-                        teamDiv.querySelector('.save-name').style.display = 'none';
-                    });
-                });
-            });
-        }
-
-        function handleResponse(response) {
-            return response.json().then(data => {
-                if (!data.success) {
-                    alert(data.error || 'Operation failed');
-                }
-                return data;
-            });
-        }
-        
-        // Event listeners
+    function setupAdminControls() {
+        // Rozpocznij grę
         document.getElementById('startGame').addEventListener('click', () => {
             fetch('/api/start_game', { method: 'POST' })
                 .then(handleResponse)
                 .then(fetchGameState);
         });
-        
+
+        // Następna runda
         document.getElementById('nextRound').addEventListener('click', () => {
-            fetch('/api/next_round', { method: 'POST' })
-                .then(handleResponse)
-                .then(fetchGameState);
+            if (confirm('Czy na pewno chcesz przejść do następnej rundy?')) {
+                fetch('/api/next_round', { method: 'POST' })
+                    .then(handleResponse)
+                    .then(fetchGameState);
+            }
         });
-        
+
+        // Zeruj punkty rundy
         document.getElementById('resetRoundPoints').addEventListener('click', () => {
             fetch('/api/reset_round_points', { method: 'POST' })
                 .then(handleResponse)
                 .then(fetchGameState);
         });
-        
-        document.getElementById('resetTeamNames').addEventListener('click', () => {
-            fetch('/api/reset_team_names', { method: 'POST' })
-                .then(handleResponse)
-                .then(fetchGameState);
-        });
-        
-        // Delegated event listeners
+
+        // Delegowane nasłuchiwanie
         document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('reveal-answer')) {
-                const answerId = e.target.closest('.answer').dataset.answerId;
-                fetch('/api/reveal_answer', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ answer_id: answerId })
-                }).then(handleResponse).then(fetchGameState);
-            }
-            
-            if (e.target.classList.contains('award-points')) {
-                const teamId = e.target.closest('.team').dataset.teamId;
-                fetch('/api/award_round_points', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ team_id: teamId })
-                }).then(handleResponse).then(fetchGameState);
-            }
-            
-            if (e.target.classList.contains('add-warning')) {
-                const teamId = e.target.closest('.team').dataset.teamId;
+            // Dodaj ostrzeżenie
+            if (e.target.classList.contains('add-warning-btn')) {
+                const teamId = e.target.closest('.team-admin').dataset.teamId;
                 fetch('/api/add_warning', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ team_id: teamId })
-                }).then(handleResponse).then(fetchGameState);
+                })
+                .then(handleResponse)
+                .then(fetchGameState);
+            }
+
+            // Przyznaj punkty
+            if (e.target.classList.contains('award-points-btn')) {
+                const teamId = e.target.closest('.team-admin').dataset.teamId;
+                fetch('/api/award_round_points', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ team_id: teamId })
+                })
+                .then(handleResponse)
+                .then(fetchGameState);
+            }
+
+            // Aktualizuj nazwę
+            if (e.target.classList.contains('update-name-btn')) {
+                const teamDiv = e.target.closest('.team-admin');
+                const teamId = teamDiv.dataset.teamId;
+                const newName = teamDiv.querySelector('.team-name-input').value;
+                
+                fetch('/api/update_team_name', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        team_id: teamId,
+                        new_name: newName
+                    })
+                })
+                .then(handleResponse)
+                .then(fetchGameState);
+            }
+
+            // Odsłoń/ukryj odpowiedź
+            if (e.target.classList.contains('reveal-answer-btn')) {
+                const answerId = e.target.closest('.answer-admin').dataset.answerId;
+                fetch('/api/reveal_answer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ answer_id: answerId })
+                })
+                .then(handleResponse)
+                .then(fetchGameState);
+            }
+        });
+    }
+
+    function updateGameState(data) {
+        // Status gry
+        document.getElementById('gameActiveStatus').textContent = 
+            data.game_active ? "GRA AKTYWNA" : "GRA NIEAKTYWNA";
+        document.getElementById('currentRound').textContent = data.current_round;
+        document.getElementById('roundPoints').textContent = data.round_points || 0;
+        
+        // Pytanie
+        document.getElementById('currentQuestionText').textContent = 
+            data.current_question ? data.current_question.question : "Brak aktywnego pytania";
+        
+        // Zespoły
+        data.teams.forEach(team => {
+            const teamDiv = document.getElementById(`team${team.id}`);
+            if (teamDiv) {
+                teamDiv.querySelector('.team-name-input').value = team.name;
+                teamDiv.querySelector('.team-score').textContent = `${team.score} PKT`;
             }
         });
         
-        // Initial setup
-        document.addEventListener('DOMContentLoaded', function() {
-            setupTeamNameEditing();
-            fetchGameState();
-            setInterval(fetchGameState, 2000);
-        });
+        // Odpowiedzi
+        const answersList = document.getElementById('answersList');
+        answersList.innerHTML = '';
+        
+        if (data.answers) {
+            data.answers.sort((a, b) => b.points - a.points).forEach(answer => {
+                const answerDiv = document.createElement('div');
+                answerDiv.className = `answer-admin ${answer.revealed ? 'revealed' : 'hidden'}`;
+                answerDiv.dataset.answerId = answer.id;
+                
+                answerDiv.innerHTML = `
+                    <div class="answer-points">${answer.points}</div>
+                    <div class="answer-content">
+                        <div class="answer-text">${answer.answer}</div>
+                        <div class="answer-status">${answer.revealed ? 'ODSŁONIĘTA' : 'UKRYTA'}</div>
+                    </div>
+                    <button class="reveal-answer-btn">${answer.revealed ? 'UKRYJ' : 'ODSŁOŃ'}</button>
+                `;
+                
+                answersList.appendChild(answerDiv);
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        setupAdminControls();
+        fetchGameState();
+        setInterval(fetchGameState, 2000);
+    });
     </script>
 </body>
 </html>

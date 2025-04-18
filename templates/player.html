@@ -6,105 +6,120 @@
     <title>Familiada - Gracz</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
+
+<style>
+    .warning-x {
+        color: #ff0000;
+        font-size: 4rem; /* Zwiększono z 3rem */
+        font-weight: bold;
+        margin: 0 5px;
+        text-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
+        animation: pulse 0.8s infinite alternate;
+    }
+    
+    .warning-display {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 60px;
+        margin-top: 15px;
+        background-color: rgba(0, 0, 0, 0.3);
+        border-radius: 10px;
+        padding: 5px;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 0.8; }
+        100% { transform: scale(1.2); opacity: 1; }
+    }
+    </style>
+
+    
 <body>
-    <div class="container">
-        <h1>Familiada</h1>
+    <div class="container player-view">
+        <div class="game-header">
+            <h1 class="round-number">Runda: <span id="currentRound">0</span></h1>
+            <div class="answers-counter">Odsłonięte: <span id="answersCount">0/0</span></div>
+        </div>
         
-        <div class="game-info">
-            <div class="game-status">
-                <div id="gameActiveStatus">Gra nieaktywna</div>
-            </div>
-            <h2>Runda: <span id="currentRound">0</span></h2>
-            <div>Punkty rundy: <span id="roundPoints">0</span></div>
-            <div id="currentQuestion"></div>
-            <div class="answers-counter">Odpowiedzi: <span id="answersCount">0/0</span> odsłonięte</div>
+        <div class="answers-container">
+            <div id="answersList"></div>
         </div>
         
         <div class="teams-container">
             <div class="team" id="team1">
-                <h3>Zespół 1</h3>
-                <div class="team-name">Zespół A</div>
-                <div class="team-score">Punkty: 0</div>
-                <div class="team-warnings">Ostrzeżenia: 0</div>
+                <h2 class="team-name">Zespół A</h2>
+                <div class="team-score"><span class="score-value">0</span> pkt</div>
+                <div class="warnings-container">
+                    <div class="warning-display" id="team1-warnings"></div>
+                </div>
             </div>
             
             <div class="team" id="team2">
-                <h3>Zespół 2</h3>
-                <div class="team-name">Zespół B</div>
-                <div class="team-score">Punkty: 0</div>
-                <div class="team-warnings">Ostrzeżenia: 0</div>
+                <h2 class="team-name">Zespół B</h2>
+                <div class="team-score"><span class="score-value">0</span> pkt</div>
+                <div class="warnings-container">
+                    <div class="warning-display" id="team2-warnings"></div>
+                </div>
             </div>
         </div>
-        
-        <div class="answers-container">
-            <h2>Odpowiedzi</h2>
-            <div id="answersList"></div>
-        </div>
     </div>
-    
+
     <script src="/static/script.js"></script>
     <script>
-        function updateGameState(data) {
-            // Aktualizacja statusu gry
-            const statusElement = document.getElementById('gameActiveStatus');
-            statusElement.textContent = data.game_active ? "Gra aktywna" : "Gra nieaktywna";
-            statusElement.className = data.game_active ? "active" : "";
-            
-            // Aktualizacja rundy
-            document.getElementById('currentRound').textContent = data.current_round;
-            document.getElementById('roundPoints').textContent = data.round_points || 0;
-
-            
-            // Aktualizacja pytania
-            document.getElementById('currentQuestion').textContent = 
-                data.current_question ? data.current_question.question : "Brak pytania";
-            
-            // Aktualizacja licznika odpowiedzi
-            if (data.current_question && data.answers) {
-                const revealed = data.answers.filter(a => a.revealed).length;
-                const total = data.answers.length;
-                document.getElementById('answersCount').textContent = `${revealed}/${total}`;
-            } else {
-                document.getElementById('answersCount').textContent = "0/0";
-            }
-            
-            // Aktualizacja zespołów
-            data.teams.forEach((team, index) => {
-                const teamDiv = document.getElementById(`team${index + 1}`);
-                teamDiv.querySelector('.team-name').textContent = team.name;
-                teamDiv.querySelector('.team-score').textContent = `Punkty: ${team.score}`;
-                teamDiv.querySelector('.team-warnings').textContent = `Ostrzeżenia: ${team.warnings}`;
-            });
-            
-            // Aktualizacja odpowiedzi (wszystkie, ale zakryte)
-            const answersList = document.getElementById('answersList');
-            answersList.innerHTML = '';
-            
-            if (data.answers) {
-                data.answers.sort((a, b) => b.points - a.points).forEach(answer => {
-                    const answerDiv = document.createElement('div');
-                    answerDiv.className = `answer ${answer.revealed ? 'revealed' : 'hidden'}`;
-                    
-                    if (answer.revealed) {
-                        answerDiv.innerHTML = `
-                            <div class="answer-points">${answer.points}</div>
-                            <div class="answer-text">${answer.answer}</div>
-                        `;
-                    } else {
-                        answerDiv.innerHTML = `
-                            <div class="answer-points hidden-text">????????</div>
-                            <div class="answer-text hidden-text">????????</div>
-                        `;
-                    }
-                    
-                    answersList.appendChild(answerDiv);
-                });
-            }
+    function updateGameState(data) {
+        // Runda i licznik
+        document.getElementById('currentRound').textContent = data.current_round;
+        
+        if (data.answers) {
+            const revealed = data.answers.filter(a => a.revealed).length;
+            const total = data.answers.length;
+            document.getElementById('answersCount').textContent = `${revealed}/${total}`;
         }
         
-        // Inicjalizacja
+        // Zespoły
+        data.teams.forEach(team => {
+            const teamDiv = document.getElementById(`team${team.id}`);
+            if (teamDiv) {
+                teamDiv.querySelector('.team-name').textContent = team.name;
+                teamDiv.querySelector('.score-value').textContent = team.score;
+                
+                // Ostrzeżenia
+                const warningsDisplay = teamDiv.querySelector('.warning-display');
+                warningsDisplay.innerHTML = '';
+                for (let i = 0; i < team.warnings; i++) {
+                    const xElement = document.createElement('div');
+                    xElement.className = 'warning-x';
+                    xElement.textContent = '✖';
+                    warningsDisplay.appendChild(xElement);
+                }
+            }
+        });
+        
+        // Odpowiedzi
+        const answersList = document.getElementById('answersList');
+        answersList.innerHTML = '';
+        
+        if (data.answers) {
+            data.answers
+                .filter(a => a.revealed)
+                .sort((a, b) => b.points - a.points)
+                .forEach(answer => {
+                    const answerDiv = document.createElement('div');
+                    answerDiv.className = 'answer revealed';
+                    answerDiv.innerHTML = `
+                        <div class="answer-points">${answer.points}</div>
+                        <div class="answer-text">${answer.answer}</div>
+                    `;
+                    answersList.appendChild(answerDiv);
+                });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
         fetchGameState();
         setInterval(fetchGameState, 2000);
+    });
     </script>
 </body>
 </html>
